@@ -83,7 +83,35 @@ Once that passes, raise the difficulty.
 
 ---
 
-## Part D — Self-improvement
+## Part D — Running with no API key (local models)
+
+You don't need OpenAI. Two free, local options the framework uses automatically:
+
+- **Ollama (LLM, no key):** install [Ollama](https://ollama.com) on the game
+  machine and `ollama pull llava` (vision) + `ollama pull llama3.2` (text). The
+  agent auto-detects the server at `localhost:11434` and uses it for scene
+  understanding and natural chat.
+- **YOLO (object detection, offline):** `pip install -e ".[detect]"`.
+
+### Training a custom YOLO model (game-specific detection)
+
+Pretrained YOLO only knows COCO objects, so it won't recognise "coin" or
+"zombie". To teach it your game's objects:
+
+1. **Collect** ~100–300 screenshots of the game (the agent's captures work).
+2. **Label** them with boxes (e.g. [Roboflow](https://roboflow.com) or
+   [labelImg](https://github.com/heartexlabs/labelImg)) into YOLO format.
+3. **Train**:
+   ```bash
+   yolo detect train data=coins.yaml model=yolov8n.pt epochs=50 imgsz=640
+   ```
+4. **Point the config** at the result: set `yolo.weights` to the produced
+   `best.pt`. No code changes needed.
+
+This is the realistic way to get "human-level vision" for a specific game
+without a giant cloud model.
+
+## Part E — Self-improvement
 
 After each session, inspect `Metrics`:
 

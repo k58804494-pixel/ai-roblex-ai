@@ -20,6 +20,9 @@ vision = ["mss>=9.0", "pillow>=10.0", "pytesseract>=0.3.10", "opencv-python>=4.8
 control = ["pynput>=1.7"]
 llm = ["openai>=1.30"]
 config = ["pyyaml>=6.0"]
+# Local object detection (pulls in torch — heavy, so kept out of `all`).
+# The local Ollama LLM backend needs NO python package (it uses the stdlib).
+detect = ["ultralytics>=8.0"]
 all = [
     "mss>=9.0", "pillow>=10.0", "pytesseract>=0.3.10", "opencv-python>=4.8",
     "pynput>=1.7", "openai>=1.30", "pyyaml>=6.0",

@@ -67,6 +67,33 @@ def test_chat_refuses_unsafe():
     assert turn.kind == TurnKind.REFUSED
 
 
+class _FakeLLM:
+    available = True
+
+    def chat(self, prompt, system=None):
+        return "  Sure, exploring the map now!  "
+
+
+def test_chat_uses_llm_for_conversation():
+    router = ChatRouter(MissionBoard(), llm=_FakeLLM())
+    turn = router.handle("what are you doing?")
+    assert turn.kind == TurnKind.CONVERSATION
+    assert turn.reply == "Sure, exploring the map now!"
+
+
+def test_chat_falls_back_when_llm_unavailable():
+    class _Down:
+        available = False
+
+        def chat(self, prompt, system=None):  # pragma: no cover - never called
+            raise AssertionError("should not be called when unavailable")
+
+    router = ChatRouter(MissionBoard(), llm=_Down())
+    turn = router.handle("what are you doing?")
+    assert turn.kind == TurnKind.CONVERSATION
+    assert turn.reply  # rule-based fallback still answers
+
+
 def test_thinking_clarification():
     t = ThinkingState(current_goal="Find key", confidence=0.2, problem="Door locked")
     assert t.needs_clarification()

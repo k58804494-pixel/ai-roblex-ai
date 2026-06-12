@@ -37,7 +37,13 @@ class Frame:
 class ScreenCapture:
     def __init__(self, monitor: int = 1) -> None:
         self.monitor = monitor
-        self._sct = mss.mss() if mss is not None else None
+        self._sct = None
+        if mss is not None:
+            try:
+                self._sct = mss.mss()
+            except Exception:
+                # No display server (headless) -> use the blank-frame fallback.
+                self._sct = None
 
     @property
     def available(self) -> bool:

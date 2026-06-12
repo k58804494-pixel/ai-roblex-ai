@@ -1,8 +1,15 @@
-"""Vision pipeline: capture -> (LLM understanding | OCR heuristics) -> Scene.
+"""Vision pipeline: capture -> scene understanding -> Scene.
 
-The pipeline always produces a ``Scene``. When a cloud LLM is configured it does
-the heavy lifting of scene understanding; otherwise the pipeline falls back to
-OCR plus light heuristics so the agent still has *some* structured perception.
+The pipeline always produces a ``Scene``. It picks the best available
+*understander* in this order, falling through on failure so the agent always
+perceives *something*:
+
+1. **Cloud LLM** (`LLMVision`) — only when an ``OPENAI_API_KEY`` is set.
+2. **Local Ollama** (`LocalLLM`) — free, no key, when a server is reachable.
+3. **OCR heuristics** — Tesseract + light regex parsing.
+
+Regardless of which understander runs, **YOLO** object detections (if available)
+are merged in to give the planner clickable bounding boxes.
 """
 
 from __future__ import annotations
@@ -15,7 +22,9 @@ from ..config import Config
 from ..schemas import Quest, Scene
 from .capture import Frame, ScreenCapture
 from .llm_vision import LLMVision
+from .local_vision import LocalLLM
 from .ocr import OCR
+from .yolo import YoloDetector
 
 _HEALTH_RE = re.compile(r"(?:hp|health)\D{0,3}(\d{1,3})\s*%?", re.IGNORECASE)
 _QUEST_RE = re.compile(r"(collect|defeat|find|reach|talk to|kill)\b.*", re.IGNORECASE)
@@ -27,6 +36,7 @@ class VisionPipeline:
         self.config = config
         self.capture = ScreenCapture(monitor=config.vision.capture_monitor)
         self.ocr = OCR() if config.vision.use_ocr else None
+
         self.llm: Optional[LLMVision] = None
         if config.llm_enabled:
             self.llm = LLMVision(
@@ -35,18 +45,58 @@ class VisionPipeline:
                 max_dim=config.vision.max_image_dim,
             )
 
+        self.local_llm: Optional[LocalLLM] = None
+        if config.local_llm.enabled:
+            self.local_llm = LocalLLM(
+                host=config.local_llm.host,
+                vision_model=config.local_llm.vision_model,
+                text_model=config.local_llm.text_model,
+                max_dim=config.vision.max_image_dim,
+                timeout_s=config.local_llm.timeout_s,
+            )
+
+        self.yolo: Optional[YoloDetector] = None
+        if config.yolo.enabled:
+            self.yolo = YoloDetector(
+                weights=config.yolo.weights, conf=config.yolo.conf
+            )
+
     def perceive(self, frame: Optional[Frame] = None) -> Scene:
         if frame is None:
             frame = self.capture.grab()
 
+        scene = self._understand(frame)
+        if scene is None:
+            scene = self._ocr_scene(frame)
+
+        self._augment(scene, frame)
+        return scene
+
+    def _understand(self, frame: Frame) -> Optional[Scene]:
         if self.llm is not None and self.llm.available:
             scene = self.llm.understand(frame.image)
             if scene is not None:
-                if self.ocr is not None and self.ocr.available and not scene.raw_text:
-                    scene.raw_text = self.ocr.read_text(frame.image)
+                if not scene.notes:
+                    scene.notes = "cloud-llm"
                 return scene
+        if self.local_llm is not None and self.local_llm.available:
+            scene = self.local_llm.understand(frame.image)
+            if scene is not None:
+                if not scene.notes:
+                    scene.notes = "local-llm"
+                return scene
+        return None
 
-        return self._ocr_scene(frame)
+    def _augment(self, scene: Scene, frame: Frame) -> None:
+        """Merge YOLO detections and OCR text into ``scene`` in place."""
+
+        if self.yolo is not None and self.yolo.available:
+            detected = self.yolo.detect(frame.image)
+            if detected:
+                # Keep semantic entities; append detections that add boxes.
+                scene.entities.extend(detected)
+        if self.ocr is not None and self.ocr.available and not scene.raw_text:
+            scene.raw_text = self.ocr.read_text(frame.image)
 
     def _ocr_scene(self, frame: Frame) -> Scene:
         text = ""

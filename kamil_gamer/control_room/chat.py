@@ -17,11 +17,27 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
+from typing import Optional, Protocol, runtime_checkable
 
 from ..memory import GameMemory
 from ..safety import SafetyPolicy
 from .missions import MissionBoard
+
+_CHAT_SYSTEM = (
+    "You are Kamil AI Gamer, a friendly game-playing teammate. Reply in one or "
+    "two short, natural sentences. Never help with cheating or exploits."
+)
+
+
+@runtime_checkable
+class TextLLM(Protocol):
+    """Anything that can answer text (e.g. the local Ollama ``LocalLLM``)."""
+
+    @property
+    def available(self) -> bool: ...
+
+    def chat(self, prompt: str, system: Optional[str] = None) -> Optional[str]: ...
+
 
 _IMPERATIVE = re.compile(
     r"^\s*(collect|find|finish|complete|reach|go|explore|kill|defeat|build|open|"
@@ -60,10 +76,12 @@ class ChatRouter:
         board: MissionBoard,
         memory: Optional[GameMemory] = None,
         safety: Optional[SafetyPolicy] = None,
+        llm: Optional[TextLLM] = None,
     ) -> None:
         self.board = board
         self.memory = memory
         self.safety = safety or SafetyPolicy()
+        self.llm = llm
 
     def handle(self, text: str) -> ChatTurn:
         text = (text or "").strip()
@@ -156,6 +174,9 @@ class ChatRouter:
 
     # --- conversation --------------------------------------------------------
     def _answer(self, text: str) -> str:
+        llm_reply = self._llm_answer(text)
+        if llm_reply:
+            return llm_reply
         lower = text.lower()
         if "what are you doing" in lower or "what're you doing" in lower:
             m = self.board.next_actionable()
@@ -165,3 +186,16 @@ class ChatRouter:
         if "stuck" in lower:
             return "If I stop making progress I switch to recovery and ask you."
         return "Tell me a goal (e.g. 'collect 5 coins') or ask /status."
+
+    def _llm_answer(self, text: str) -> Optional[str]:
+        """Use a local LLM for a natural reply when one is available."""
+
+        if self.llm is None:
+            return None
+        try:
+            if not self.llm.available:
+                return None
+            reply = self.llm.chat(text, system=_CHAT_SYSTEM)
+        except Exception:
+            return None
+        return reply.strip() if reply else None

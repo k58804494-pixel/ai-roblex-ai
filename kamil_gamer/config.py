@@ -44,6 +44,26 @@ class ControlConfig:
 
 
 @dataclass
+class LocalLLMConfig:
+    """Local Ollama backend — no API key, runs on your machine."""
+
+    enabled: bool = True
+    host: str = "http://localhost:11434"
+    vision_model: str = "llava"
+    text_model: str = "llama3.2"
+    timeout_s: float = 60.0
+
+
+@dataclass
+class YoloConfig:
+    """Local YOLO object detection (ultralytics)."""
+
+    enabled: bool = True
+    weights: str = "yolov8n.pt"
+    conf: float = 0.35
+
+
+@dataclass
 class MemoryConfig:
     root: Path = field(default_factory=lambda: Path.home() / ".kamil_gamer")
 
@@ -65,6 +85,8 @@ class Config:
     control: ControlConfig = field(default_factory=ControlConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     anti_stuck: AntiStuckConfig = field(default_factory=AntiStuckConfig)
+    local_llm: LocalLLMConfig = field(default_factory=LocalLLMConfig)
+    yolo: YoloConfig = field(default_factory=YoloConfig)
 
     @property
     def llm_enabled(self) -> bool:
@@ -97,6 +119,12 @@ class Config:
             cfg.anti_stuck = AntiStuckConfig(
                 **{**cfg.anti_stuck.__dict__, **data["anti_stuck"]}
             )
+        if "local_llm" in data:
+            cfg.local_llm = LocalLLMConfig(
+                **{**cfg.local_llm.__dict__, **data["local_llm"]}
+            )
+        if "yolo" in data:
+            cfg.yolo = YoloConfig(**{**cfg.yolo.__dict__, **data["yolo"]})
         if "memory" in data and "root" in data["memory"]:
             cfg.memory = MemoryConfig(root=Path(data["memory"]["root"]))
         return cfg

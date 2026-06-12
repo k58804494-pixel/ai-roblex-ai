@@ -109,12 +109,37 @@ sudo apt-get install -y tesseract-ocr
 brew install tesseract
 ```
 
-To enable real scene *understanding* with a cloud vision model, set an API key
-(optional — it runs OCR-only without one):
+### Brains: how it "sees" and reasons
+
+The vision pipeline picks the best available backend automatically, in this
+order, and always falls through to something:
+
+1. **Cloud LLM** — set `OPENAI_API_KEY` to use a hosted vision model.
+   ```bash
+   export OPENAI_API_KEY=sk-...
+   ```
+2. **Local LLM via Ollama — FREE, no API key** (recommended). Install
+   [Ollama](https://ollama.com) on the machine that runs the game and pull a
+   vision + text model; the agent talks to it at `localhost:11434`:
+   ```bash
+   ollama pull llava       # vision: scene understanding
+   ollama pull llama3.2    # text: reasoning / natural chat
+   ```
+3. **OCR heuristics** — Tesseract + regex, always available as a last resort.
+
+Independently, **local YOLO object detection** (also free, offline) can add
+bounding boxes for the planner to click:
 
 ```bash
-export OPENAI_API_KEY=sk-...
+pip install -e ".[detect]"   # installs ultralytics (pulls in torch)
 ```
+
+> Pretrained YOLO weights detect generic **COCO** objects (person, car, …). For
+> game-specific things (coins, zombies, chests), train a small custom YOLO model
+> and point `yolo.weights` at it — see [`docs/TRAINING.md`](docs/TRAINING.md).
+
+All of this is configured in `config.yaml` (`local_llm:` and `yolo:` sections);
+copy `config.example.yaml` to start.
 
 ## Run
 

@@ -57,10 +57,18 @@ def main(argv: list[str] | None = None) -> int:
         config.control.dry_run = False
 
     mode = "LIVE" if not config.control.dry_run else "DRY-RUN"
+    if config.llm_enabled:
+        vision = "cloud-LLM"
+    elif config.local_llm.enabled:
+        vision = "local-Ollama+OCR"
+    else:
+        vision = "OCR-only"
+    if config.yolo.enabled:
+        vision += "+YOLO"
     logging.getLogger("kamil_gamer").info(
         "Kamil AI Gamer | game=%s | vision=%s | control=%s",
         config.game_name,
-        "LLM+OCR" if config.llm_enabled else "OCR-only",
+        vision,
         mode,
     )
 
