@@ -1,0 +1,54 @@
+# Copy to config.yaml and edit. All fields are optional; defaults are shown.
+
+# Key that toggles the agent on/off (global hotkey).
+hotkey: r
+
+# Perceive->act cycles per second.
+loop_hz: 2.0
+
+# Name used to namespace this game's memory database.
+game_name: unknown_game
+
+# Cloud vision LLM key. Leave empty to run OCR-only (no network calls).
+# You can also set the OPENAI_API_KEY environment variable instead.
+openai_api_key: ""
+
+vision:
+  use_llm: true
+  llm_model: gpt-4o-mini
+  use_ocr: true
+  capture_monitor: 1
+  max_image_dim: 1280
+
+# Local LLM via Ollama (https://ollama.com) — FREE, no API key. Used when the
+# cloud key is absent and an Ollama server is reachable. Run on the game machine:
+#   ollama pull llava      # vision model (scene understanding)
+#   ollama pull llama3.2   # text model (reasoning/chat)
+local_llm:
+  enabled: true
+  host: http://localhost:11434
+  vision_model: llava
+  text_model: llama3.2
+  timeout_s: 60.0
+
+# Local object detection via YOLO (ultralytics) — FREE, offline. Install with
+# `pip install -e ".[detect]"`. Default weights detect COCO objects; train a
+# custom model for game-specific items and point `weights` at it.
+yolo:
+  enabled: true
+  weights: yolov8n.pt
+  conf: 0.35
+
+control:
+  # IMPORTANT: dry_run=true only logs actions. Set to false to actually move the
+  # mouse/keyboard. Start in dry-run to verify behaviour safely.
+  dry_run: true
+  min_reaction_ms: 120
+  max_reaction_ms: 320
+  aim_error_px: 6
+  move_min_duration_s: 0.12
+  move_max_duration_s: 0.45
+
+anti_stuck:
+  stuck_seconds: 60.0
+  progress_eps: 1.0
