@@ -12,12 +12,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional
 
+from ..adapters import GameAdapter, get_adapter
 from ..config import Config
 from ..control import Controller
 from ..memory import GameMemory
+from ..metrics import Metrics
 from ..planning import Planner
-from ..schemas import Action, Scene
+from ..schemas import Action, ActionType, Scene
 from ..vision import VisionPipeline
+from ..world import WorldModel
 from .antistuck import AntiStuck
 
 logger = logging.getLogger("kamil_gamer")
@@ -39,6 +42,7 @@ class Orchestrator:
         controller: Optional[Controller] = None,
         memory: Optional[GameMemory] = None,
         anti_stuck: Optional[AntiStuck] = None,
+        adapter: Optional[GameAdapter] = None,
     ) -> None:
         self.config = config
         self.vision = vision or VisionPipeline(config)
@@ -47,6 +51,9 @@ class Orchestrator:
         self.controller = controller or Controller(config.control)
         self.memory = memory or GameMemory(config.memory.root, config.game_name)
         self.anti_stuck = anti_stuck or AntiStuck(config.anti_stuck)
+        self.adapter = adapter or get_adapter(config.game_name)
+        self.world = WorldModel.from_dict(self.memory.recall("world_model", {}))
+        self.metrics = Metrics()
         self.stats = LoopStats()
         self._running = False
 
@@ -65,15 +72,19 @@ class Orchestrator:
         self.anti_stuck.observe(scene)
 
         if self.anti_stuck.is_stuck():
-            action = self.anti_stuck.recovery_action()
+            action = self.adapter.recovery_hint() if self.stats.recoveries == 0 \
+                else self.anti_stuck.recovery_action()
             self.stats.recoveries += 1
+            self.metrics.recoveries += 1
             self.memory.log_event("recovery", {"action": action.describe()})
             logger.info("STUCK -> %s", action.describe())
         else:
-            action = self.planner.plan(scene)
+            action = self.adapter.map_action(self.planner.plan(scene))
 
         self._persist_progress(scene)
         self.controller.execute(action)
+        self.metrics.record_action(success=action.type != ActionType.NONE)
+        self.metrics.cycles += 1
         self.stats.cycles += 1
         self.stats.actions.append(action.describe())
         self.memory.log_event(
@@ -90,6 +101,7 @@ class Orchestrator:
                 )
         if scene.player_health_pct is not None:
             self.memory.remember("last_health_pct", scene.player_health_pct)
+        self.memory.remember("world_model", self.world.to_dict())
 
     def run(self, max_cycles: Optional[int] = None) -> LoopStats:
         """Run the loop until stopped or ``max_cycles`` is reached."""

@@ -67,6 +67,29 @@ grow on top of this working foundation.
 | Anti-stuck | `kamil_gamer/agents/antistuck.py` | detect no-progress, cycle recovery strategies |
 | Orchestrator | `kamil_gamer/agents/orchestrator.py` | the perceive→plan→act→remember loop |
 | Hotkey | `kamil_gamer/hotkey.py` | press `R` to start/stop |
+| Adapters | `kamil_gamer/adapters/` | per-game/platform glue (`RobloxAdapter`, generic base) |
+| World model | `kamil_gamer/world/` | internal map: places, connections, danger zones, routing |
+| Skill library | `kamil_gamer/skills/` | reusable named skills (parkour/combat/explore/trade) |
+| Control Room | `kamil_gamer/control_room/` | chat = command + conversation, mission board, thinking/confidence, clarification |
+| Safety | `kamil_gamer/safety.py` | refuses cheating/exploits/harassment; protects your account |
+| Personality | `kamil_gamer/personality.py` | trait presets that bias playstyle |
+| Metrics | `kamil_gamer/metrics.py` | self-improvement scoreboard + auto weakness flags |
+
+See [`docs/TRAINING.md`](docs/TRAINING.md) for how to **train** the agent
+(system prompt + a Roblox-Studio-first curriculum).
+
+### Control Room (chat + missions)
+
+```python
+from kamil_gamer.control_room import ChatRouter, MissionBoard
+
+board = MissionBoard()
+router = ChatRouter(board)
+router.handle("collect 5 coins")   # -> a mission with subgoals + status
+router.handle("I like stealth")    # -> remembered as a preference
+router.handle("/status")           # -> renders the mission board
+router.handle("use a wallhack")    # -> refused by the safety policy
+```
 
 ## Install
 
@@ -129,13 +152,23 @@ This is what lets the agent "remember how to do it next time."
 
 ## Roadmap
 
-This repo is the foundation (Phases 1–3, 4–6 partially). Planned next:
+**Built so far:** vision (LLM+OCR), control + humanization, planner, per-game
+memory, anti-stuck, `R` hotkey, adapters (Roblox), world model, skill library,
+Control Room (chat + missions + thinking/confidence + clarification), safety,
+personality, and self-improvement metrics.
+
+**Planned next (the *Kamil AI Gamer X* dream):**
 
 - **Auto-research engine** — detect the game, read its wiki/guides, build a
   strategy manual before playing.
-- **Self-reflection** — after each session, analyse the event log and update
-  memory ("lost boss fight → level up first").
+- **Self-reflection** — after each session, analyse the event log + metrics and
+  update memory ("lost boss fight → level up first").
 - **Multi-agent brain** — split stages into cooperating agents.
+- **Curiosity / experimentation engine** — try things to discover mechanics.
+- **Voice companion** — listen to and speak in voice chat.
+- **Replay analysis** — record sessions and review mistakes.
+- **Team coordination** — multiple AI companions with roles (tank/healer/scout).
+- **More adapters** — Minecraft / Steam / browser games.
 - **Object detection / minimap reading / motion prediction** in the vision layer.
 
 ## Tests
