@@ -1,0 +1,18 @@
+# Core
+pydantic>=2.5
+numpy>=1.24
+
+# Vision (optional but recommended)
+mss>=9.0            # fast screen capture
+pillow>=10.0        # image encoding
+pytesseract>=0.3.10 # OCR (requires the Tesseract binary installed on the OS)
+opencv-python>=4.8  # image processing helpers
+
+# Control (optional; needed for live input)
+pynput>=1.7
+
+# Cloud vision LLM (optional; only used when OPENAI_API_KEY is set)
+openai>=1.30
+
+# Config
+pyyaml>=6.0
