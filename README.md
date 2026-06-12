@@ -93,9 +93,41 @@ router.handle("use a wallhack")    # -> refused by the safety policy
 
 ## Install
 
+### Download from the terminal (one line)
+
+**macOS / Linux:**
+
 ```bash
-git clone <this-repo>
-cd kamil-ai-gamer
+curl -LsSf https://raw.githubusercontent.com/k58804494-pixel/ai-roblex-ai/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/k58804494-pixel/ai-roblex-ai/main/scripts/install.ps1 | iex
+```
+
+The installer picks a Python, installs into an isolated environment (pipx if
+present, otherwise a managed venv), and puts a **`kamil-gamer`** command on your
+PATH. Then:
+
+```bash
+kamil-gamer --game roblox --cycles 3      # safe headless dry-run
+```
+
+Prefer pip/pipx directly? These also work from the terminal:
+
+```bash
+pipx install "kamil-ai-gamer[all] @ git+https://github.com/k58804494-pixel/ai-roblex-ai@main"
+# or
+pip install "kamil-ai-gamer[all] @ git+https://github.com/k58804494-pixel/ai-roblex-ai@main"
+```
+
+### From source (for development)
+
+```bash
+git clone https://github.com/k58804494-pixel/ai-roblex-ai
+cd ai-roblex-ai
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all,dev]"
 ```
